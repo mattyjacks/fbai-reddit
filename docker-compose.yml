@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:8.0.32
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    networks:
+      - backend
+    ports:
+      - 3308:3306
+    volumes:
+      - ./mysql:/docker-entrypoint-initdb.d
+      - ./mysql/data:/var/lib/mysql
+
+  packages:
+    image: node:20.16.0-bullseye
+    init: true
+    depends_on:
+      - mysql
+    volumes:
+      - ./:/app
+      # do not mount node modules
+      - /app/node_modules
+    working_dir: /app
+    networks:
+      - backend
+    env_file:
+      - .env.example
+      - .env
+    command: sh -x -c "npm i && npm run dev"
+
+networks:
+  backend:

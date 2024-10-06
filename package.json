@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --exec \"node --require ts-node/register --inspect=0.0.0.0:9229 src/main.ts\""
   },
   "keywords": [],
   "author": "",
@@ -11,7 +12,19 @@
   "description": "",
   "devDependencies": {
     "@types/node": "^22.7.4",
+    "@types/node-cron": "^3.0.11",
+    "@types/url-join": "^4.0.3",
+    "dotenv": "^16.4.5",
+    "nodemon": "^3.1.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "kysely": "^0.27.4",
+    "mysql2": "^3.11.3",
+    "node-cron": "^3.0.3",
+    "openai": "^4.67.1",
+    "url-join": "^4.0.1"
   }
 }
