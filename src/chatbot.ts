@@ -1,7 +1,14 @@
+import { Ollama } from "ollama";
 import { AzureOpenAI } from "openai";
+
 import { SocialMediaPost } from "./types";
 
-export class Chatbot {
+export interface IChatbot {
+  isPostRelevant({ post }: { post: SocialMediaPost }): Promise<boolean>;
+  generateReply({ post }: { post: SocialMediaPost }): Promise<string>;
+}
+
+export class ChatGptChatbot {
   /**
    * Class constructor.
    */
@@ -93,7 +100,105 @@ Content: ${post.content}`,
 }
 
 const SYSTEM_PROMPT = `You are a marketing assistant at a company that sells First 2 Apply. 
-First2Apply is a job search automation tool that provides real-time job alerts from over 10 popular job boards like LinkedIn and Indeed. It features advanced matching, which analyzes job listings to match users with the most relevant opportunities based on their profiles. Additionally, users can customize alerts, apply filters, and manage their applications efficiently to ensure they are among the first to apply to suitable positions.
+First2Apply is a job search automation tool that provides real-time job alerts from over 10 popular job boards like LinkedIn, Indeed, Dice, Glassdoor, BuildIn, Remotive, Remote IO, RemoteOK, WeWorkRemotely, FlexJobs, Robert Half, USAJobs.gov. 
+It features advanced matching, which analyzes job listings with AI to match users with the most relevant opportunities based on their profiles. 
+Additionally, users can customize alerts, apply filters, and manage their applications efficiently to ensure they are among the first to apply to suitable positions.
+
+What First2Apply is NOT:
+  - It is not a job board or a recruitment agency.
+  - It is not a resume writing service.
+  - It is not a career coaching service.
+  - It is not a job placement service.
+  - It doesn not help with passing ATS systems.
+
 The ideal customer profile is job seekers looking for efficiency in their search, especially those applying to many positions across multiple platforms. It’s ideal for tech-savvy users who value time-saving and advanced filtering.
 You are responsible for reviewing social media posts and provide helpful feedback as well as mentioning how the app can be useful to the user.
-You need to pretend to have used the app and offer it as a solution to the user's problem.`;
+You need to pretend to have used the app and offer it as a solution to the user's problem.
+
+Make sure you never:
+  - Mention that you work for First2Apply.
+  - Make it too obvious that you are shilling the app.
+  - Make any promises about the app that are not true.
+  - Provide any personal information about yourself or the company.
+  - Use any language that could be considered offensive or inappropriate.
+  - Provide any medical, legal, or financial advice.
+  - Provide any information that could be considered confidential or proprietary.
+  - Provide any information that could be considered spam or advertising.
+  - Provide any information that could be considered defamatory or libelous.
+  - Provide any information that could be considered harmful or dangerous.
+  - Provide any information that could be considered illegal or unethical.
+  - Keep it short and sweet. Maybe under 500 characters.
+
+Here are a few ideas that you should know job hunting:
+  - Applying to jobs as soon as they are posted increases your chances of getting noticed/initerviewed/hired.
+  - It is still not proven that ATS systems are automatically rejecting resumes by using AI to filter out candidates based on keywords.
+`;
+
+export class OllamaChatbot {
+  private _ollama = new Ollama({
+    host: this._config.host,
+  });
+
+  /**
+   * Class constructor.
+   */
+  constructor(
+    private _config: {
+      host: string;
+      model: string;
+    }
+  ) {}
+
+  /**
+   * IChatbot implementation.
+   */
+  async isPostRelevant({ post }: { post: SocialMediaPost }) {
+    const response = await this._ollama.chat({
+      model: this._config.model,
+      options: {
+        temperature: 0,
+        top_p: 0,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+      },
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content: `Is the following post relevant to the business? Reply with "yes" or "no".
+A post is relevant to the business only if the OP would fit the ideal customer profile.
+
+Title: ${post.title}
+Content: ${post.content}`,
+        },
+      ],
+    });
+    // console.log(response);
+
+    const message = response.message.content?.trim();
+    return message?.toLowerCase().startsWith("yes");
+  }
+
+  async generateReply({ post }: { post: SocialMediaPost }) {
+    const response = await this._ollama.chat({
+      model: this._config.model,
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content: `Reply to the following post. Don't put too much empahsis on the app to not sound like you work for them, but mention the name. Also try to keep it short
+Title: ${post.title}
+Content: ${post.content}`,
+        },
+      ],
+    });
+
+    return response.message.content;
+  }
+}

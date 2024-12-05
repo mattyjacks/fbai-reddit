@@ -1,4 +1,4 @@
-import { Chatbot } from "./chatbot";
+import { ChatGptChatbot, IChatbot, OllamaChatbot } from "./chatbot";
 import { parseEnv } from "./env";
 import { RedditApiSdk } from "./redditApiSdk";
 import { Kysely, MysqlDialect } from "kysely";
@@ -34,12 +34,18 @@ async function boostrap() {
     password: env.reddit.password,
     userAgent: env.reddit.userAgent,
   });
-  const chatbot = new Chatbot({
-    openAiApiKey: env.openAiApiKey,
+  console.log(`Reddit API initialized using user ${env.reddit.username}`);
+  // const chatbot = new ChatGptChatbot({
+  //   openAiApiKey: env.openAiApiKey,
+  // });
+  const model = "llama3.2:latest";
+  const chatbot = new OllamaChatbot({
+    host: env.ollama.host,
+    model,
   });
+  console.log(`Ollama Chatbot initialized using model ${model}`);
 
-  // every hour get the latest posts and process them
-  schedule("*/1 * * * *", async () => {
+  const run = async () => {
     try {
       console.log("Getting latest posts...");
       await getLatestPosts({ redditApi, socialMediaPostsRepo });
@@ -48,7 +54,13 @@ async function boostrap() {
     } catch (error) {
       console.error(`Error processing posts: ${error}`);
     }
-  });
+  };
+
+  // every hour get the latest posts and process them
+  schedule("0 * * * *", run);
+
+  // run once on startup
+  await run();
 
   console.log(`Done.`);
 }
@@ -62,13 +74,13 @@ async function getLatestPosts({
   redditApi: RedditApiSdk;
   socialMediaPostsRepo: SocialMediaPostsRepository;
 }) {
-  // const subreddits = ["recruitinghell", "jobsearchhacks"];
+  const subreddits = ["recruitinghell", "jobsearchhacks"];
   // const subreddits = ["cscareerquestionsEU"];
-  const subreddits = ["jobs"];
+  // const subreddits = ["jobs"];
   for (const subreddit of subreddits) {
     const posts = await redditApi.getSubredditPosts({
       subreddit,
-      limit: 2,
+      limit: 50,
     });
 
     await socialMediaPostsRepo.upsertPosts({
@@ -89,27 +101,35 @@ async function processNewestPosts({
 }: {
   redditApi: RedditApiSdk;
   socialMediaPostsRepo: SocialMediaPostsRepository;
-  chatbot: Chatbot;
+  chatbot: IChatbot;
 }) {
   const unprocessedPosts = await socialMediaPostsRepo.getAllUnprocessedPosts();
   console.log(`Found ${unprocessedPosts.length} unprocessed posts.`);
   for (const post of unprocessedPosts) {
-    const isPostRelevant = await chatbot.isPostRelevant({ post });
-    console.log(`${isPostRelevant} - ${post.title}`);
-    if (isPostRelevant) {
-      const reply = await chatbot.generateReply({ post });
-      await socialMediaPostsRepo.saveReply({
-        reply: {
-          postId: post.id,
-          text: reply,
-        },
-      });
+    try {
+      console.log(`Checking if post is relevant ...`);
+      const isPostRelevant = await chatbot.isPostRelevant({ post });
+      console.log(`${isPostRelevant} - ${post.title}`);
+      if (isPostRelevant) {
+        const reply = await chatbot.generateReply({ post });
+        await socialMediaPostsRepo.saveReply({
+          reply: {
+            postId: post.id,
+            text: reply,
+          },
+        });
+        console.log(`Reply: ${reply}`);
+        // await redditApi.replyToPost({
+        //   postId: post.externalId,
+        //   text: reply,
+        // });
+      }
+    } catch (error) {
+      console.error(`Error processing post: ${error}`);
 
-      // await redditApi.replyToPost({
-      //   postId: post.externalId,
-      //   text: reply,
-      // });
+      throw error; // temp stop if error
+    } finally {
+      await socialMediaPostsRepo.markPostAsProcessed({ postId: post.id });
     }
-    await socialMediaPostsRepo.markPostAsProcessed({ postId: post.id });
   }
 }

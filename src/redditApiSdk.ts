@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import urljoin from "url-join";
 
 const REDDIT_API_BASE_URL = "https://www.reddit.com/api/v1";
@@ -127,6 +127,14 @@ export class RedditApiSdk {
 
       return res.data;
     } catch (error: any) {
+      if (isAxiosError(error)) {
+        throw new Error(
+          `Error calling Reddit API ${path}: ${JSON.stringify(
+            error.response?.data
+          )}`
+        );
+      }
+
       throw new Error(
         `Error calling Reddit API ${path}: ${JSON.stringify(error)}`
       );

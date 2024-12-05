@@ -17,10 +17,14 @@ export type Env = {
     userAgent: string;
   };
   openAiApiKey: string;
+  ollama: {
+    host: string;
+    model: string;
+  };
 };
 
 export function parseEnv(): Env {
-  return {
+  const env = {
     mysql: {
       host: process.env.MYSQL_HOST || "",
       username: process.env.MYSQL_USERNAME || "",
@@ -36,5 +40,11 @@ export function parseEnv(): Env {
       userAgent: process.env.REDDIT_USER_AGENT || "",
     },
     openAiApiKey: process.env.OPENAI_API_KEY || "",
+    ollama: {
+      host: process.env.OLLAMA_HOST || "",
+      model: process.env.OLLAMA_MODEL || "",
+    },
   };
+
+  return env;
 }
