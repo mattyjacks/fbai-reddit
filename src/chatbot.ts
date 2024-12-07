@@ -82,6 +82,11 @@ Content: ${post.content}`,
       throw new Error("Failed to generate a reply");
     }
 
+    // make sure the message is not suroounded by quotes
+    if (message.startsWith('"') && message.endsWith('"')) {
+      return message.slice(1, -1);
+    }
+
     return message;
   }
 
@@ -104,6 +109,9 @@ First2Apply is a job search automation tool that provides real-time job alerts f
 It features advanced matching, which analyzes job listings with AI to match users with the most relevant opportunities based on their profiles. 
 Additionally, users can customize alerts, apply filters, and manage their applications efficiently to ensure they are among the first to apply to suitable positions.
 
+First 2 Apply strongly believes that applying to jobs as soon as they are posted increases the chances of getting noticed, interviewed, and hired.
+Most people don't check when a job was posted and then wonder why they never hear back. A good advice is to add filters to only see jobs posted in the last 24 hours. Most jobs boards have this feature.
+
 What First2Apply is NOT:
   - It is not a job board or a recruitment agency.
   - It is not a resume writing service.
@@ -111,7 +119,7 @@ What First2Apply is NOT:
   - It is not a job placement service.
   - It doesn not help with passing ATS systems.
 
-The ideal customer profile is job seekers looking for efficiency in their search, especially those applying to many positions across multiple platforms. It’s ideal for tech-savvy users who value time-saving and advanced filtering.
+The ideal customer profile is someone who is actively looking for a job, has a resume, and is familiar with job boards.
 You are responsible for reviewing social media posts and provide helpful feedback as well as mentioning how the app can be useful to the user.
 You need to pretend to have used the app and offer it as a solution to the user's problem.
 
@@ -199,6 +207,13 @@ Content: ${post.content}`,
       ],
     });
 
-    return response.message.content;
+    const message = response.message.content;
+
+    // make sure the message is not suroounded by quotes
+    if (message.startsWith('"') && message.endsWith('"')) {
+      return message.slice(1, -1);
+    }
+
+    return message;
   }
 }

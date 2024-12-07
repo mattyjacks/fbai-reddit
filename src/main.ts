@@ -74,13 +74,21 @@ async function getLatestPosts({
   redditApi: RedditApiSdk;
   socialMediaPostsRepo: SocialMediaPostsRepository;
 }) {
-  const subreddits = ["recruitinghell", "jobsearchhacks"];
+  const subreddits = [
+    "layoffs",
+    "jobsearchhacks",
+    // "cscareerquestions",
+    "csMajors",
+    "jobhunting",
+    "remotework",
+    "recruitinghell",
+  ];
   // const subreddits = ["cscareerquestionsEU"];
   // const subreddits = ["jobs"];
   for (const subreddit of subreddits) {
     const posts = await redditApi.getSubredditPosts({
       subreddit,
-      limit: 50,
+      limit: 10,
     });
 
     await socialMediaPostsRepo.upsertPosts({
@@ -105,6 +113,11 @@ async function processNewestPosts({
 }) {
   const unprocessedPosts = await socialMediaPostsRepo.getAllUnprocessedPosts();
   console.log(`Found ${unprocessedPosts.length} unprocessed posts.`);
+
+  // randomize the order of the posts
+  unprocessedPosts.sort(() => Math.random() - 0.5);
+
+  let remainingReplies = 10;
   for (const post of unprocessedPosts) {
     try {
       console.log(`Checking if post is relevant ...`);
@@ -119,10 +132,19 @@ async function processNewestPosts({
           },
         });
         console.log(`Reply: ${reply}`);
-        // await redditApi.replyToPost({
-        //   postId: post.externalId,
-        //   text: reply,
-        // });
+
+        if (remainingReplies > 0) {
+          await redditApi.replyToPost({
+            postId: post.externalId,
+            text: reply,
+          });
+          remainingReplies--;
+          console.log(`Replied to post: ${post.externalId}`);
+        } else {
+          console.log(
+            "Skipping replying to post because were out of quota for this run."
+          );
+        }
       }
     } catch (error) {
       console.error(`Error processing post: ${error}`);
