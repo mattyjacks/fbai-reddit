@@ -1,0 +1,28 @@
+{
+  "name": "fbai-reddit-v2",
+  "version": "1.0.0",
+  "description": "Reddit bot with web interface",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.20.1",
+    "ollama": "^0.4.0",
+    "mysql2": "^3.6.5",
+    "node-cron": "^3.0.3",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

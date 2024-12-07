@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First2Apply Reddit Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8">First2Apply Reddit Bot Dashboard</h1>
+        
+        <!-- Configuration Section -->
+        <div class="bg-white rounded-lg p-6 mb-8 shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Bot Configuration</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">AI Model</label>
+                    <select id="aiModel" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="gpt">ChatGPT</option>
+                        <option value="ollama">Ollama</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">API Key</label>
+                    <input type="password" id="apiKey" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+            </div>
+            <button onclick="updateConfig()" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Save Configuration</button>
+        </div>
+
+        <!-- Subreddit Management -->
+        <div class="bg-white rounded-lg p-6 mb-8 shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Monitored Subreddits</h2>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newSubreddit" placeholder="Add subreddit..." class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <button onclick="addSubreddit()" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Add</button>
+            </div>
+            <div id="subredditList" class="space-y-2">
+                <!-- Subreddits will be added here -->
+            </div>
+        </div>
+
+        <!-- Post Monitor -->
+        <div class="bg-white rounded-lg p-6 shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Recent Posts</h2>
+            <div id="postsContainer" class="space-y-4">
+                <!-- Posts will be added here -->
+            </div>
+            <div id="loading" class="loading text-center py-4">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO
+        const socket = io('http://localhost:3000');
+        
+        // Socket event listeners
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('subreddits', (subreddits) => {
+            updateSubredditList(subreddits);
+        });
+
+        socket.on('newPosts', (posts) => {
+            updatePosts(posts);
+        });
+
+        socket.on('replyGenerated', ({ postId, reply }) => {
+            const replyDiv = document.querySelector(`#post-${postId} .reply`);
+            if (replyDiv) {
+                replyDiv.innerHTML = reply;
+                replyDiv.classList.remove('hidden');
+            }
+        });
+
+        // Update subreddit list
+        function updateSubredditList(subreddits) {
+            const subredditList = document.getElementById('subredditList');
+            subredditList.innerHTML = '';
+            subreddits.forEach(subreddit => {
+                const div = createSubredditElement(subreddit);
+                subredditList.appendChild(div);
+            });
+        }
+
+        // Create subreddit element
+        function createSubredditElement(subreddit) {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center p-2 bg-gray-50 rounded';
+            div.innerHTML = `
+                <span>r/${subreddit}</span>
+                <button onclick="removeSubreddit('${subreddit}')" class="text-red-500 hover:text-red-700">Remove</button>
+            `;
+            return div;
+        }
+
+        // Add subreddit
+        function addSubreddit() {
+            const input = document.getElementById('newSubreddit');
+            const subreddit = input.value.trim();
+            if (subreddit) {
+                socket.emit('addSubreddit', subreddit);
+                input.value = '';
+            }
+        }
+
+        // Remove subreddit
+        function removeSubreddit(subreddit) {
+            socket.emit('removeSubreddit', subreddit);
+        }
+
+        // Update configuration
+        function updateConfig() {
+            const config = {
+                aiModel: document.getElementById('aiModel').value,
+                apiKey: document.getElementById('apiKey').value
+            };
+            socket.emit('updateConfig', config);
+        }
+
+        // Create post element
+        function createPostElement(post) {
+            const div = document.createElement('div');
+            div.id = `post-${post.id}`;
+            div.className = 'border rounded-lg p-4';
+            div.innerHTML = `
+                <h3 class="font-semibold">${post.title}</h3>
+                <p class="text-gray-600 mt-2">${post.content || '(No content)'}</p>
+                <a href="${post.url}" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm mt-2 inline-block">View on Reddit</a>
+                <div class="mt-4">
+                    <button onclick="generateReply(${JSON.stringify(post)})" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">Generate Reply</button>
+                    <div class="reply mt-2 hidden"></div>
+                </div>
+            `;
+            return div;
+        }
+
+        // Update posts
+        function updatePosts(posts) {
+            const postsContainer = document.getElementById('postsContainer');
+            posts.forEach(post => {
+                // Only add if post doesn't exist
+                if (!document.getElementById(`post-${post.id}`)) {
+                    postsContainer.insertBefore(createPostElement(post), postsContainer.firstChild);
+                }
+            });
+        }
+
+        // Generate reply
+        function generateReply(post) {
+            const replyDiv = document.querySelector(`#post-${post.id} .reply`);
+            replyDiv.classList.remove('hidden');
+            replyDiv.innerHTML = 'Generating reply...';
+            socket.emit('generateReply', post);
+        }
+    </script>
+</body>
+</html>
